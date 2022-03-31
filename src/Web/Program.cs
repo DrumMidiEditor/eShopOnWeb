@@ -25,7 +25,7 @@ var builder = WebApplication.CreateBuilder( args );
 builder.Logging.AddConsole();
 
 // https://docs.microsoft.com/ja-jp/aspnet/core/fundamentals/configuration/?view=aspnetcore-6.0
-// コンフィグ構成（DB接続設定 etc）
+// インフラコンフィグ構成（DB接続設定 etc）
 // Configの設定は、appsettings.json に入力
 Microsoft.eShopWeb.Infrastructure.Dependencies.ConfigureServices( builder.Configuration, builder.Services );
 

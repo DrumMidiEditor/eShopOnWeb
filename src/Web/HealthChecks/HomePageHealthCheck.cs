@@ -16,7 +16,7 @@ public class HomePageHealthCheck : IHealthCheck
 
     public async Task<HealthCheckResult> CheckHealthAsync( HealthCheckContext aContext, CancellationToken aCancellationToken = default )
     {
-        var request = this._httpContextAccessor.HttpContext?.Request ?? null ;
+        var request = _httpContextAccessor.HttpContext?.Request ?? null ;
         
         if ( request == null )
         { 

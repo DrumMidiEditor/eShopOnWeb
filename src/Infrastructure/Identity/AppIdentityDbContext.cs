@@ -1,21 +1,24 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace Microsoft.eShopWeb.Infrastructure.Identity;
 
+/// <summary>
+/// アプリケーションDBユーザー情報作成
+/// </summary>
 public class AppIdentityDbContext : IdentityDbContext<ApplicationUser>
 {
-    public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options)
-        : base(options)
+    public AppIdentityDbContext( DbContextOptions<AppIdentityDbContext> options )
+        : base( options )
     {
     }
 
-    protected override void OnModelCreating(ModelBuilder builder)
+    protected override void OnModelCreating( ModelBuilder builder )
     {
-        base.OnModelCreating(builder);
-        // Customize the ASP.NET Identity model and override the defaults if needed.
-        // For example, you can rename the ASP.NET Identity table names and more.
-        // Add your customizations after calling base.OnModelCreating(builder);
+        base.OnModelCreating( builder );
+
+        // ASP.NET Identityモデルをカスタマイズし、必要に応じてデフォルトをオーバーライドします。
+        // たとえば、ASP.NETIdentityテーブル名などの名前を変更できます。
+        // base.OnModelCreating（builder）; を呼び出した後、カスタマイズを追加します。
     }
 }

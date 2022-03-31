@@ -18,7 +18,7 @@ public class ApiHealthCheck : IHealthCheck
 
     public async Task<HealthCheckResult> CheckHealthAsync( HealthCheckContext aContext, CancellationToken aCancellationToken = default )
     {
-        string myUrl = this._baseUrlConfiguration.ApiBase + "catalog-items";
+        string myUrl = _baseUrlConfiguration.ApiBase + "catalog-items";
 
         var client = new HttpClient();
 

@@ -6,8 +6,16 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.eShopWeb.Infrastructure;
 
+/// <summary>
+/// 依存関係
+/// </summary>
 public static class Dependencies
 {
+    /// <summary>
+    /// サービス構成
+    /// </summary>
+    /// <param name="configuration"></param>
+    /// <param name="services"></param>
     public static void ConfigureServices( IConfiguration configuration, IServiceCollection services )
     {
         var useOnlyInMemoryDatabase = bool.Parse( configuration[ "UseOnlyInMemoryDatabase" ] ?? "false" );

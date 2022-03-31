@@ -8,7 +8,8 @@ namespace Microsoft.eShopWeb.Infrastructure.Data;
 
 public class CatalogContext : DbContext
 {
-    public CatalogContext(DbContextOptions<CatalogContext> options) : base(options)
+    public CatalogContext( DbContextOptions<CatalogContext> options ) 
+        : base( options )
     {
     }
 
@@ -20,9 +21,10 @@ public class CatalogContext : DbContext
     public DbSet<OrderItem> OrderItems { get; set; }
     public DbSet<BasketItem> BasketItems { get; set; }
 
-    protected override void OnModelCreating(ModelBuilder builder)
+    protected override void OnModelCreating( ModelBuilder builder )
     {
-        base.OnModelCreating(builder);
-        builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        base.OnModelCreating( builder );
+
+        builder.ApplyConfigurationsFromAssembly( Assembly.GetExecutingAssembly() );
     }
 }

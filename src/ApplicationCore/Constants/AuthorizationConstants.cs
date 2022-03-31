@@ -1,5 +1,8 @@
 ﻿namespace Microsoft.eShopWeb.ApplicationCore.Constants;
 
+/// <summary>
+/// 承認定数
+/// </summary>
 public class AuthorizationConstants
 {
     public const string AUTH_KEY = "AuthKeyOfDoomThatMustBeAMinimumNumberOfBytes";

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace Microsoft.eShopWeb.Web.Configuration;
 
 //TODO : replace IMemoryCache with a distributed cache if you are in multi-host scenario
+//TODO : マルチホストシナリオの場合は、IMemoryCacheを分散キャッシュに置き換えます
 public class RevokeAuthenticationEvents : CookieAuthenticationEvents
 {
     private readonly IMemoryCache _cache;
@@ -22,14 +23,14 @@ public class RevokeAuthenticationEvents : CookieAuthenticationEvents
 
     public override async Task ValidatePrincipal(CookieValidatePrincipalContext context)
     {
-        var userId = context.Principal.Claims.First(c => c.Type == ClaimTypes.Name);
-        var identityKey = context.Request.Cookies[ConfigureCookieSettings.IdentifierCookieName];
+        var userId = context.Principal.Claims.First( c => c.Type == ClaimTypes.Name );
+        var identityKey = context.Request.Cookies[ ConfigureCookieSettings.IdentifierCookieName ];
 
-        if (_cache.TryGetValue($"{userId.Value}:{identityKey}", out var revokeKeys))
+        if (_cache.TryGetValue( $"{userId.Value}:{identityKey}", out var revokeKeys ))
         {
-            _logger.LogDebug($"Access has been revoked for: {userId.Value}.");
+            _logger.LogDebug( $"Access has been revoked for: {userId.Value}." );
             context.RejectPrincipal();
-            await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await context.HttpContext.SignOutAsync( CookieAuthenticationDefaults.AuthenticationScheme );
         }
     }
 }

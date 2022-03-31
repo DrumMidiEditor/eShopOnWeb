@@ -80,10 +80,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
 // 独自サービス
 builder.Services.AddScoped<ITokenClaimsService, IdentityTokenClaimService>();
 
-// .NET Core?
+// .NET Core(ConfigureCoreServices)
 builder.Services.AddCoreServices( builder.Configuration );
 
-// Webサービス
+// Webサービス(ConfigureWebServices)
 builder.Services.AddWebServices( builder.Configuration );
 
 // 非分散メモリ内実装？共有メモリってこと？
@@ -133,19 +133,26 @@ builder.Services.AddRazorPages
 
 
 builder.Services.AddHttpContextAccessor();
+
+// 正常性チェック構成
 builder.Services
     .AddHealthChecks()
-    .AddCheck<ApiHealthCheck>("api_health_check", tags: new[] { "apiHealthCheck" })
-    .AddCheck<HomePageHealthCheck>("home_page_health_check", tags: new[] { "homePageHealthCheck" });
-builder.Services.Configure<ServiceConfig>(config =>
-{
-    config.Services = new List<ServiceDescriptor>(builder.Services);
-    config.Path = "/allservices";
-});
+    .AddCheck<ApiHealthCheck>       ( "api_health_check"        , tags: new[] { "apiHealthCheck"        } )
+    .AddCheck<HomePageHealthCheck>  ( "home_page_health_check"  , tags: new[] { "homePageHealthCheck"   } );
+
+builder.Services.Configure<ServiceConfig>
+    (
+        config =>
+        {
+            config.Services = new List<ServiceDescriptor>( builder.Services );
+            config.Path = "/allservices";
+        }
+    );
 
 // blazor configuration
 var configSection = builder.Configuration.GetRequiredSection(BaseUrlConfiguration.CONFIG_NAME);
 builder.Services.Configure<BaseUrlConfiguration>(configSection);
+
 var baseUrlConfig = configSection.Get<BaseUrlConfiguration>();
 
 // Blazor Admin Required Services for Prerendering
@@ -165,12 +172,15 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 #endregion
 
+#region アプリ構成
 
 var app = builder.Build();
 
 app.Logger.LogInformation( "App created..." );
 
-// URLベース
+#region URLベース設定
+
+// appsettings.json の設定を使用
 var catalogBaseUrl = builder.Configuration.GetValue( typeof( string ), "CatalogBaseUrl" ) as string;
 if ( !string.IsNullOrEmpty( catalogBaseUrl ) )
 {
@@ -185,8 +195,11 @@ if ( !string.IsNullOrEmpty( catalogBaseUrl ) )
         );
 }
 
+#endregion
+
+#region 正常性チェック：有効化
+
 // https://docs.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-6.0
-// 正常性チェック
 // 正常性チェックは通常、アプリの状態を確認する目的で、外部の監視サービスまたはコンテナー オーケストレーターと共に使用されます。
 // 正常性チェックをアプリに追加する前に、使用する監視システムを決定します。
 // 監視システムからは、作成する正常性チェックの種類とそのエンドポイントの設定方法が指示されます。
@@ -197,27 +210,41 @@ app.UseHealthChecks
         {
             ResponseWriter = async ( context, report ) =>
             {
+                // https://docs.microsoft.com/ja-jp/dotnet/api/microsoft.extensions.diagnostics.healthchecks.healthreport?view=dotnet-plat-ext-6.0
                 var result = new
                 {
+                    // すべての正常性チェックの集計状態を表す HealthStatus を取得します。
+                    // Status の値は、正常性チェックによって報告される最も重大な状態になります。
+                    // チェックが実行されなかった場合、値は常に Healthy です。
                     status = report.Status.ToString(),
+
+                    // 各正常性チェックの結果
+                    // Degraded	 1: 正常性チェックによって、コンポーネントがデグレード状態であると判断されたことを示します。
+                    // Healthy   2: 正常性チェックによって、コンポーネントが正常であると判断されたことを示します。
+                    // Unhealthy 0: 正常性チェックによって、コンポーネントが異常な状態であると判断されたか
+                    //              正常性チェックの実行中にハンドルされない例外がスローされたことを示します。
                     errors = report.Entries.Select
                     (
                         e => new
                         {
                             key = e.Key,
-                            value = Enum.GetName(typeof(HealthStatus), e.Value.Status)
+                            value = Enum.GetName( typeof( HealthStatus ), e.Value.Status )
                         }
                     )
                 }.ToJson();
                 context.Response.ContentType = MediaTypeNames.Application.Json;
-                await context.Response.WriteAsync(result);
+                await context.Response.WriteAsync( result );
             }
         }
     );
 
-if (app.Environment.IsDevelopment())
+#endregion
+
+if ( app.Environment.IsDevelopment() )
 {
-    app.Logger.LogInformation("Adding Development middleware...");
+    // テスト構成
+    app.Logger.LogInformation( "Adding Development middleware..." );
+
     app.UseDeveloperExceptionPage();
     app.UseShowAllServicesMiddleware();
     app.UseMigrationsEndPoint();
@@ -225,49 +252,85 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.Logger.LogInformation("Adding non-Development middleware...");
-    app.UseExceptionHandler("/Error");
+    // 本番構成
+    app.Logger.LogInformation( "Adding non-Development middleware..." );
+
+    app.UseExceptionHandler( "/Error" );
     app.UseHsts();
 }
 
+// HTTP 要求を HTTPS にリダイレクトするためのHTTPS リダイレクト ミドルウェア
 app.UseHttpsRedirection();
+
+// ルートパス "/" から Blazor Webasframework ファイルを処理するようにアプリケーションを構成
 app.UseBlazorFrameworkFiles();
+
+// Web ルート内のファイルの提供
 app.UseStaticFiles();
+
+// ルーティング
 app.UseRouting();
 
+// Cookie ポリシー
 app.UseCookiePolicy();
+
+// 認証
 app.UseAuthentication();
+
+// 認可
 app.UseAuthorization();
 
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllerRoute("default", "{controller:slugify=Home}/{action:slugify=Index}/{id?}");
-    endpoints.MapRazorPages();
-    endpoints.MapHealthChecks("home_page_health_check", new HealthCheckOptions { Predicate = check => check.Tags.Contains("homePageHealthCheck") });
-    endpoints.MapHealthChecks("api_health_check", new HealthCheckOptions { Predicate = check => check.Tags.Contains("apiHealthCheck") });
-    //endpoints.MapBlazorHub("/admin");
-    endpoints.MapFallbackToFile("index.html");
-});
+#region エンドポイント設定
 
-app.Logger.LogInformation("Seeding Database...");
+app.UseEndpoints
+    (
+        endpoints =>
+        {
+            // ルート テンプレート
+            endpoints.MapControllerRoute( "default", "{controller:slugify=Home}/{action:slugify=Index}/{id?}" );
+
+            // Razor Pages のエンドポイント
+            endpoints.MapRazorPages();
+
+            // 正常性チェック
+            endpoints.MapHealthChecks( "home_page_health_check", new() { Predicate = check => check.Tags.Contains( "homePageHealthCheck" ) } );
+            endpoints.MapHealthChecks( "api_health_check"      , new() { Predicate = check => check.Tags.Contains( "apiHealthCheck" ) } );
+
+            // https://docs.microsoft.com/ja-jp/aspnet/core/blazor/fundamentals/routing?view=aspnetcore-6.0
+            // 対話型コンポーネントの着信接続を受け入れるように構成？よくわからない
+            //endpoints.MapBlazorHub("/admin");
+
+            // 要求の URL パスにファイル名が含まれておらず、他のエンドポイントが一致していないケースを処理するためのもの
+            endpoints.MapFallbackToFile( "index.html" );
+        }
+    );
+
+#endregion
+
+app.Logger.LogInformation( "Seeding Database..." );
 
 using ( var scope = app.Services.CreateScope() )
 {
     var scopedProvider = scope.ServiceProvider;
+
     try
     {
         var catalogContext = scopedProvider.GetRequiredService<CatalogContext>();
-        await CatalogContextSeed.SeedAsync(catalogContext, app.Logger);
+
+        await CatalogContextSeed.SeedAsync( catalogContext, app.Logger );
 
         var userManager = scopedProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = scopedProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        await AppIdentityDbContextSeed.SeedAsync(userManager, roleManager);
+
+        await AppIdentityDbContextSeed.SeedAsync( userManager, roleManager );
     }
-    catch (Exception ex)
+    catch ( Exception ex )
     {
-        app.Logger.LogError(ex, "An error occurred seeding the DB.");
+        app.Logger.LogError( ex, "An error occurred seeding the DB." );
     }
 }
 
-app.Logger.LogInformation("LAUNCHING");
+#endregion
+
+app.Logger.LogInformation( "LAUNCHING" );
 app.Run();

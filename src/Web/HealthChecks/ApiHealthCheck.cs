@@ -1,34 +1,37 @@
-﻿using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using BlazorShared;
+﻿using BlazorShared;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
 namespace Microsoft.eShopWeb.Web.HealthChecks;
 
+/// <summary>
+/// APIのヘルスチェック
+/// </summary>
 public class ApiHealthCheck : IHealthCheck
 {
     private readonly BaseUrlConfiguration _baseUrlConfiguration;
 
-    public ApiHealthCheck(IOptions<BaseUrlConfiguration> baseUrlConfiguration)
+    public ApiHealthCheck( IOptions<BaseUrlConfiguration> aBaseUrlConfiguration )
     {
-        _baseUrlConfiguration = baseUrlConfiguration.Value;
+        this._baseUrlConfiguration = aBaseUrlConfiguration.Value;
     }
 
-    public async Task<HealthCheckResult> CheckHealthAsync(
-        HealthCheckContext context,
-        CancellationToken cancellationToken = default(CancellationToken))
+    public async Task<HealthCheckResult> CheckHealthAsync( HealthCheckContext aContext, CancellationToken aCancellationToken = default )
     {
-        string myUrl = _baseUrlConfiguration.ApiBase + "catalog-items";
+        string myUrl = this._baseUrlConfiguration.ApiBase + "catalog-items";
+
         var client = new HttpClient();
-        var response = await client.GetAsync(myUrl);
-        var pageContents = await response.Content.ReadAsStringAsync();
-        if (pageContents.Contains(".NET Bot Black Sweatshirt"))
+
+        // 指定された URI に GET 要求を非同期操作として送信
+        var response = await client.GetAsync( myUrl, aCancellationToken );
+
+        var pageContents = await response.Content.ReadAsStringAsync( aCancellationToken );
+
+        if ( pageContents.Contains( ".NET Bot Black Sweatshirt" ) )
         {
-            return HealthCheckResult.Healthy("The check indicates a healthy result.");
+            return HealthCheckResult.Healthy( "The check indicates a healthy result." );
         }
 
-        return HealthCheckResult.Unhealthy("The check indicates an unhealthy result.");
+        return HealthCheckResult.Unhealthy( "The check indicates an unhealthy result." );
     }
 }

@@ -17,52 +17,121 @@ using Microsoft.eShopWeb.Web.Configuration;
 using Microsoft.eShopWeb.Web.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-var builder = WebApplication.CreateBuilder(args);
+#region ビルド構成
 
+var builder = WebApplication.CreateBuilder( args );
+
+// ログコンソール出力追加
 builder.Logging.AddConsole();
 
-Microsoft.eShopWeb.Infrastructure.Dependencies.ConfigureServices(builder.Configuration, builder.Services);
+// https://docs.microsoft.com/ja-jp/aspnet/core/fundamentals/configuration/?view=aspnetcore-6.0
+// コンフィグ構成（DB接続設定 etc）
+// Configの設定は、appsettings.json に入力
+Microsoft.eShopWeb.Infrastructure.Dependencies.ConfigureServices( builder.Configuration, builder.Services );
 
+// Cookie構成
 builder.Services.AddCookieSettings();
 
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-    });
+// Cookie認証
+builder.Services.AddAuthentication( CookieAuthenticationDefaults.AuthenticationScheme )
+    .AddCookie
+    (
+        options =>
+        {
+            // クライアント側のスクリプトからCookieへのアクセス可否を設定
+            options.Cookie.HttpOnly = true;
 
+            // https://docs.microsoft.com/ja-jp/dotnet/api/microsoft.aspnetcore.http.cookiesecurepolicy?view=aspnetcore-6.0
+            // None         : セキュリティ的に非推奨
+            // Always       : Secure は常に true とマークされます。 この値はログイン ページおよび認証済み ID を必要とする
+            //                後続のすべてのページが HTTPS を使用する場合に使用してください。
+            //                HTTPS URL によるローカル開発も必要になります。
+            // SameAsRequest: クッキーを提供する URI が HTTPS の場合、Cookie は後続の HTTPS 要求でのみサーバーに返されます。
+            //                それ以外の場合、Cookie を提供する URI が HTTP の場合は、すべての HTTP 要求と HTTPS 要求で
+            //                クッキーがサーバーに返されます。 この値により、デプロイされたサーバー上のすべての認証済み要求に対して
+            //                HTTPS が保証され、localhost 開発および HTTPS サポートを持つサーバーの HTTP もサポートされます。
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+
+            // https://docs.microsoft.com/ja-jp/dotnet/api/microsoft.aspnetcore.http.samesitemode?view=aspnetcore-6.0#microsoft-aspnetcore-http-samesitemode-unspecified
+            // Unspecified: SameSite フィールドは設定されません。クライアントは既定の cookie ポリシーに従う必要があります。
+            // None       : クライアントが同じサイトの制限を無効にする必要があることを示します。
+            // Lax        : クライアントが "同一サイト" の要求と "クロスサイト" のトップレベルナビゲーションを使用して
+            //              クッキーを送信する必要があることを示します。
+            // Strict     : クライアントが "同じサイト" 要求で cookie を送信する必要があることを示します。
+            options.Cookie.SameSite = SameSiteMode.Lax;
+        }
+    );
+
+// 役割：ユーザー
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
-           .AddDefaultUI()
-           .AddEntityFrameworkStores<AppIdentityDbContext>()
-                           .AddDefaultTokenProviders();
+    // https://docs.microsoft.com/ja-jp/dotnet/api/microsoft.aspnetcore.identity.identitybuilderuiextensions.adddefaultui?view=aspnetcore-6.0
+    // Identity という名前の領域内の id を使用して、IDENTITY の既定の自己Razor Pages UI をアプリケーションに追加
+    .AddDefaultUI()
 
+    // https://docs.microsoft.com/ja-jp/dotnet/api/microsoft.extensions.dependencyinjection.identityentityframeworkbuilderextensions.addentityframeworkstores?view=aspnetcore-6.0
+    // Id 情報ストアの Entity Framework 実装を追加
+    .AddEntityFrameworkStores<AppIdentityDbContext>()
+
+    // https://docs.microsoft.com/ja-jp/dotnet/api/microsoft.aspnetcore.identity.identitybuilder.adddefaulttokenproviders?view=aspnetcore-1.1
+    // パスワードのリセット、電子メールの変更、電話番号の変更、および2要素認証トークンの生成のためのトークンを生成するために
+    // 使用される既定のトークンプロバイダーを追加
+    .AddDefaultTokenProviders();
+
+// 独自サービス
 builder.Services.AddScoped<ITokenClaimsService, IdentityTokenClaimService>();
 
-builder.Services.AddCoreServices(builder.Configuration);
-builder.Services.AddWebServices(builder.Configuration);
+// .NET Core?
+builder.Services.AddCoreServices( builder.Configuration );
 
-// Add memory cache services
+// Webサービス
+builder.Services.AddWebServices( builder.Configuration );
+
+// 非分散メモリ内実装？共有メモリってこと？
 builder.Services.AddMemoryCache();
-builder.Services.AddRouting(options =>
-{
-    // Replace the type and the name used to refer to it with your own
-    // IOutboundParameterTransformer implementation
-    options.ConstraintMap["slugify"] = typeof(SlugifyParameterTransformer);
-});
 
-builder.Services.AddMvc(options =>
-{
-    options.Conventions.Add(new RouteTokenTransformerConvention(
-             new SlugifyParameterTransformer()));
+// https://docs.microsoft.com/ja-jp/aspnet/core/fundamentals/routing?view=aspnetcore-6.0
+// ルーティング
+builder.Services.AddRouting
+    (
+        // https://docs.microsoft.com/ja-jp/dotnet/api/microsoft.aspnetcore.routing.routeoptions?view=aspnetcore-6.0
+        options =>
+        {
+            // ???
+            // Replace the type and the name used to refer to it with your own
+            // IOutboundParameterTransformer implementation
+            options.ConstraintMap["slugify"] = typeof(SlugifyParameterTransformer);
+        }
+    );
 
-});
+#region MVC構成
+
+// MVCフレームワーク
+builder.Services.AddMvc
+    (
+        // https://docs.microsoft.com/ja-jp/dotnet/api/microsoft.aspnetcore.mvc.mvcoptions?view=aspnetcore-6.0
+        options =>
+        {
+            // ???
+            // アクションを検出するときに IApplicationModelConvention に適用されるインスタンスの ApplicationModel 一覧を取得します。
+            options.Conventions.Add( new RouteTokenTransformerConvention( new SlugifyParameterTransformer() ) );
+        }
+    );
+
 builder.Services.AddControllersWithViews();
-builder.Services.AddRazorPages(options =>
-{
-    options.Conventions.AuthorizePage("/Basket/Checkout");
-});
+
+builder.Services.AddRazorPages
+    (
+        // https://docs.microsoft.com/ja-jp/dotnet/api/microsoft.aspnetcore.mvc.razorpages.razorpagesoptions?view=aspnetcore-6.0
+        options =>
+        {
+            // 指定されたページの承認が必要です。ログアウト確認が必要ってこと？
+            options.Conventions.AuthorizePage( "/Basket/Checkout" );
+        }
+    );
+
+#endregion
+
+
 builder.Services.AddHttpContextAccessor();
 builder.Services
     .AddHealthChecks()
@@ -94,38 +163,58 @@ builder.Services.AddBlazorServices();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+#endregion
+
+
 var app = builder.Build();
 
-app.Logger.LogInformation("App created...");
+app.Logger.LogInformation( "App created..." );
 
-var catalogBaseUrl = builder.Configuration.GetValue(typeof(string), "CatalogBaseUrl") as string;
-if (!string.IsNullOrEmpty(catalogBaseUrl))
+// URLベース
+var catalogBaseUrl = builder.Configuration.GetValue( typeof( string ), "CatalogBaseUrl" ) as string;
+if ( !string.IsNullOrEmpty( catalogBaseUrl ) )
 {
-    app.Use((context, next) =>
-    {
-        context.Request.PathBase = new PathString(catalogBaseUrl);
-        return next();
-    });
+    app.Use
+        (
+            ( context, next ) =>
+            {
+                // 要求のベースパスを取得または設定します。 パスのベースの末尾にスラッシュを使用することはできません。
+                context.Request.PathBase = new PathString( catalogBaseUrl );
+                return next();
+            }
+        );
 }
 
-app.UseHealthChecks("/health",
-    new HealthCheckOptions
-    {
-        ResponseWriter = async (context, report) =>
+// https://docs.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-6.0
+// 正常性チェック
+// 正常性チェックは通常、アプリの状態を確認する目的で、外部の監視サービスまたはコンテナー オーケストレーターと共に使用されます。
+// 正常性チェックをアプリに追加する前に、使用する監視システムを決定します。
+// 監視システムからは、作成する正常性チェックの種類とそのエンドポイントの設定方法が指示されます。
+app.UseHealthChecks
+    (
+        "/health",
+        new HealthCheckOptions
         {
-            var result = new
+            ResponseWriter = async ( context, report ) =>
             {
-                status = report.Status.ToString(),
-                errors = report.Entries.Select(e => new
+                var result = new
                 {
-                    key = e.Key,
-                    value = Enum.GetName(typeof(HealthStatus), e.Value.Status)
-                })
-            }.ToJson();
-            context.Response.ContentType = MediaTypeNames.Application.Json;
-            await context.Response.WriteAsync(result);
+                    status = report.Status.ToString(),
+                    errors = report.Entries.Select
+                    (
+                        e => new
+                        {
+                            key = e.Key,
+                            value = Enum.GetName(typeof(HealthStatus), e.Value.Status)
+                        }
+                    )
+                }.ToJson();
+                context.Response.ContentType = MediaTypeNames.Application.Json;
+                await context.Response.WriteAsync(result);
+            }
         }
-    });
+    );
+
 if (app.Environment.IsDevelopment())
 {
     app.Logger.LogInformation("Adding Development middleware...");
@@ -162,7 +251,7 @@ app.UseEndpoints(endpoints =>
 
 app.Logger.LogInformation("Seeding Database...");
 
-using (var scope = app.Services.CreateScope())
+using ( var scope = app.Services.CreateScope() )
 {
     var scopedProvider = scope.ServiceProvider;
     try
